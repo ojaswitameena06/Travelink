@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "385330183189",
+    "project_id": "travelink-49b5b",
+    "storage_bucket": "travelink-49b5b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:385330183189:android:bcb56c3cf2011eb948a21c",
+        "android_client_info": {
+          "package_name": "com.example.travelink"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA-w9-2Pe5vqZunF0U_BEExvtlGMhD65IQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
