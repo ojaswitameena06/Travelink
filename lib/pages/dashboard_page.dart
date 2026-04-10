@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'home_page.dart';
 import 'trips_page.dart';
+import 'places_page.dart';
 import 'profile_page.dart';
 
 class DashboardPage extends StatefulWidget {
@@ -17,6 +18,7 @@ class _DashboardPageState extends State<DashboardPage> {
   final List<Widget> _pages = const [
     HomePage(),
     TripsPage(),
+    PlacesPage(),
     ProfilePage(),
   ];
 
@@ -27,6 +29,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
+        type: BottomNavigationBarType.fixed,
         selectedItemColor: Colors.blue,
         unselectedItemColor: Colors.grey,
         onTap: (index) {
@@ -42,6 +45,10 @@ class _DashboardPageState extends State<DashboardPage> {
           BottomNavigationBarItem(
             icon: Icon(Icons.flight_takeoff),
             label: "Trips",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.place),
+            label: "Places",
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),

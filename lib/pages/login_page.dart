@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'dashboard_page.dart';
 import 'register_page.dart';
 
 class LoginPage extends StatelessWidget {
-  const LoginPage({super.key});
+  LoginPage({super.key});
+
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -39,23 +43,31 @@ class LoginPage extends StatelessWidget {
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 20),
-                const TextField(
-                  decoration: InputDecoration(
+
+                // ✅ EMAIL FIELD (FIXED)
+                TextField(
+                  controller: emailController,
+                  decoration: const InputDecoration(
                     labelText: "Email",
                     border: OutlineInputBorder(),
                   ),
                 ),
+
                 const SizedBox(height: 15),
-                const TextField(
+
+                // ✅ PASSWORD FIELD (FIXED)
+                TextField(
+                  controller: passwordController,
                   obscureText: true,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: "Password",
                     border: OutlineInputBorder(),
                   ),
                 ),
+
                 const SizedBox(height: 20),
 
-                /// ✅ LOGIN BUTTON (DIRECT NAVIGATION)
+                // 🔐 LOGIN BUTTON
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 45),
@@ -63,24 +75,49 @@ class LoginPage extends StatelessWidget {
                       borderRadius: BorderRadius.circular(30),
                     ),
                   ),
-                  onPressed: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const DashboardPage(),
-                      ),
-                    );
+                  onPressed: () async {
+                    try {
+                      await FirebaseAuth.instance
+                          .signInWithEmailAndPassword(
+                        email: emailController.text.trim(),
+                        password: passwordController.text.trim(),
+                      );
+
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const DashboardPage(),
+                        ),
+                      );
+                    } on FirebaseAuthException catch (e) {
+                      String message = "";
+
+                      if (e.code == 'user-not-found') {
+                        message = "No user found";
+                      } else if (e.code == 'wrong-password') {
+                        message = "Wrong password";
+                      } else if (e.code == 'invalid-email') {
+                        message = "Invalid email";
+                      } else {
+                        message = "Login failed";
+                      }
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(message)),
+                      );
+                    }
                   },
                   child: const Text("Log In"),
                 ),
 
                 const SizedBox(height: 15),
+
                 TextButton(
                   onPressed: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const RegisterPage(),
+                        builder: (context) => RegisterPage(),
                       ),
                     );
                   },

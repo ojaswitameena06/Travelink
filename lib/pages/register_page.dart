@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'login_page.dart'; // IMPORTANT
 
 class RegisterPage extends StatelessWidget {
-  const RegisterPage({super.key});
+  RegisterPage({super.key});
+
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  final TextEditingController confirmPasswordController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -14,55 +21,88 @@ class RegisterPage extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const CircleAvatar(
-                radius: 40,
-                backgroundColor: Colors.grey,
-              ),
+              const CircleAvatar(radius: 40, backgroundColor: Colors.grey),
               const SizedBox(height: 10),
               const Text("Travelink",
-                  style:
-                      TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
               const SizedBox(height: 20),
-              const TextField(
-                decoration: InputDecoration(
+
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
                   labelText: "Full Name",
                   border: OutlineInputBorder(),
                 ),
               ),
+
               const SizedBox(height: 15),
-              const TextField(
-                decoration: InputDecoration(
+
+              TextField(
+                controller: emailController,
+                decoration: const InputDecoration(
                   labelText: "Email",
                   border: OutlineInputBorder(),
                 ),
               ),
+
               const SizedBox(height: 15),
-              const TextField(
+
+              TextField(
+                controller: passwordController,
                 obscureText: true,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: "Password",
                   border: OutlineInputBorder(),
                 ),
               ),
+
               const SizedBox(height: 15),
-              const TextField(
+
+              TextField(
+                controller: confirmPasswordController,
                 obscureText: true,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: "Confirm Password",
                   border: OutlineInputBorder(),
                 ),
               ),
+
               const SizedBox(height: 20),
+
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 45),
                 ),
-                onPressed: () {
-                  Navigator.pop(context);
+                onPressed: () async {
+                  if (passwordController.text != confirmPasswordController.text) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Passwords do not match")),
+                    );
+                    return;
+                  }
+
+                  try {
+                    await FirebaseAuth.instance.createUserWithEmailAndPassword(
+                      email: emailController.text.trim(),
+                      password: passwordController.text.trim(),
+                    );
+
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => LoginPage()),
+                    );
+
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(e.toString())),
+                    );
+                  }
                 },
                 child: const Text("Sign Up"),
               ),
+
               const SizedBox(height: 10),
+
               OutlinedButton(
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 45),
