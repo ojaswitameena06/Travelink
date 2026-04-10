@@ -21,7 +21,7 @@ jobs:
 
       - name: Build Web
         # The base URL must match your repository name EXACTLY
-        run: flutter build web --base-href "/travelink/"
+        run: flutter build web --base-href "/Travelink/"
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
