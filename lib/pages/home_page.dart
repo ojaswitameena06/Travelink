@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'chat_detail_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -57,6 +58,50 @@ class _HomePageState extends State<HomePage> {
         );
       }
     }
+  }
+
+  void _startChatWithTraveler(BuildContext context, Map<String, dynamic> trip) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to chat with travelers.')),
+      );
+      return;
+    }
+
+    final authorUid = trip['userId'] ?? '';
+    final destination = trip['title'] ?? 'Trip';
+
+    if (authorUid.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Author information unavailable.')),
+      );
+      return;
+    }
+
+    if (authorUid == currentUser.uid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This is your own trip post!')),
+      );
+      return;
+    }
+
+    // Generate deterministic chatId
+    final ids = [currentUser.uid, authorUid]..sort();
+    final chatId = ids.join('_');
+    final recipientName = "Traveler ${authorUid.substring(0, 4)}";
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChatDetailPage(
+          chatId: chatId,
+          recipientUid: authorUid,
+          recipientName: recipientName,
+          destination: destination,
+        ),
+      ),
+    );
   }
 
   @override
@@ -200,6 +245,15 @@ class _HomePageState extends State<HomePage> {
                                       ),
                                       onPressed: () => _toggleBookmark(tripId, bookmarks),
                                       tooltip: isBookmarked ? 'Remove Bookmark' : 'Add to Bucket List',
+                                    ),
+                                    const SizedBox(width: 8),
+                                    OutlinedButton.icon(
+                                      icon: const Icon(Icons.chat_bubble_outline, size: 16),
+                                      label: const Text("Ask Traveler"),
+                                      style: OutlinedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      ),
+                                      onPressed: () => _startChatWithTraveler(context, trip),
                                     ),
                                   ],
                                 ),
