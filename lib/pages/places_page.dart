@@ -2,83 +2,143 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'place_detail_page.dart';
 
-class PlacesPage extends StatelessWidget {
+class PlacesPage extends StatefulWidget {
   const PlacesPage({super.key});
+
+  @override
+  State<PlacesPage> createState() => _PlacesPageState();
+}
+
+class _PlacesPageState extends State<PlacesPage> {
+  String _selectedCategory = 'All';
+
+  final List<String> _categories = [
+    'All',
+    'Hotel',
+    'Restaurant',
+    'Cafe',
+    'Sightseeing',
+    'City',
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Places & Reviews 🏢")),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('places').snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text("No places added yet. Be the first!"));
-          }
-
-          final places = snapshot.data!.docs;
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: places.length,
-            itemBuilder: (context, index) {
-              final place = places[index].data() as Map<String, dynamic>;
-              final placeId = places[index].id;
-
-              return Card(
-                elevation: 3,
-                margin: const EdgeInsets.only(bottom: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.all(16),
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.blueAccent.withOpacity(0.2),
-                    child: const Icon(Icons.place, color: Colors.blueAccent),
+      body: Column(
+        children: [
+          // 🏷️ Category Filter Chips
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: _categories.map((cat) {
+                final isSelected = _selectedCategory == cat;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: FilterChip(
+                    label: Text(cat),
+                    selected: isSelected,
+                    selectedColor: Colors.blueAccent.withOpacity(0.2),
+                    checkmarkColor: Colors.blueAccent,
+                    onSelected: (bool selected) {
+                      setState(() {
+                        _selectedCategory = cat;
+                      });
+                    },
                   ),
-                  title: Text(
-                    place['name'] ?? 'Unnamed Place',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 5),
-                      Text("Category: ${place['category'] ?? 'General'}"),
-                      Text("Location: ${place['location'] ?? 'Unknown'}"),
-                      const SizedBox(height: 5),
-                      Row(
-                        children: [
-                          const Icon(Icons.star, color: Colors.orange, size: 18),
-                          const SizedBox(width: 5),
-                          Text(
-                            place['averageRating'] != null
-                                ? place['averageRating'].toString()
-                                : "No ratings",
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => PlaceDetailPage(placeId: placeId, placeData: place),
+                );
+              }).toList(),
+            ),
+          ),
+
+          // 🏢 Places Feed
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection('places').snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(child: Text("No places added yet. Be the first!"));
+                }
+
+                final allPlaces = snapshot.data!.docs;
+                final filteredPlaces = allPlaces.where((doc) {
+                  if (_selectedCategory == 'All') return true;
+                  final data = doc.data() as Map<String, dynamic>;
+                  final cat = (data['category'] ?? '').toString();
+                  return cat.toLowerCase() == _selectedCategory.toLowerCase();
+                }).toList();
+
+                if (filteredPlaces.isEmpty) {
+                  return Center(
+                    child: Text("No places found for category '$_selectedCategory'"),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: filteredPlaces.length,
+                  itemBuilder: (context, index) {
+                    final place = filteredPlaces[index].data() as Map<String, dynamic>;
+                    final placeId = filteredPlaces[index].id;
+
+                    return Card(
+                      elevation: 3,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.all(16),
+                        leading: CircleAvatar(
+                          backgroundColor: Colors.blueAccent.withOpacity(0.2),
+                          child: const Icon(Icons.place, color: Colors.blueAccent),
+                        ),
+                        title: Text(
+                          place['name'] ?? 'Unnamed Place',
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 5),
+                            Text("Category: ${place['category'] ?? 'General'}"),
+                            Text("Location: ${place['location'] ?? 'Unknown'}"),
+                            const SizedBox(height: 5),
+                            Row(
+                              children: [
+                                const Icon(Icons.star, color: Colors.orange, size: 18),
+                                const SizedBox(width: 5),
+                                Text(
+                                  place['averageRating'] != null
+                                      ? place['averageRating'].toString()
+                                      : "No ratings",
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => PlaceDetailPage(placeId: placeId, placeData: place),
+                            ),
+                          );
+                        },
                       ),
                     );
                   },
-                ),
-              );
-            },
-          );
-        },
+                );
+              },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddPlaceDialog(context),
@@ -89,22 +149,49 @@ class PlacesPage extends StatelessWidget {
 
   void _showAddPlaceDialog(BuildContext context) {
     final nameCtrl = TextEditingController();
-    final categoryCtrl = TextEditingController();
     final locationCtrl = TextEditingController();
+    String categoryValue = 'Hotel';
+
+    final categoryOptions = ['Hotel', 'Restaurant', 'Cafe', 'Sightseeing', 'City', 'General'];
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Add New Place"),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: "Place Name")),
-              TextField(controller: categoryCtrl, decoration: const InputDecoration(labelText: "Category (e.g. Hotel, Cafe)")),
-              TextField(controller: locationCtrl, decoration: const InputDecoration(labelText: "City / Location")),
-            ],
-          ),
+        content: StatefulBuilder(
+          builder: (context, setDialogState) {
+            return SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(labelText: "Place Name"),
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    value: categoryValue,
+                    decoration: const InputDecoration(labelText: "Category"),
+                    items: categoryOptions.map((cat) {
+                      return DropdownMenuItem(value: cat, child: Text(cat));
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setDialogState(() {
+                          categoryValue = val;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: locationCtrl,
+                    decoration: const InputDecoration(labelText: "City / Location"),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
@@ -113,7 +200,7 @@ class PlacesPage extends StatelessWidget {
               if (nameCtrl.text.isNotEmpty) {
                 FirebaseFirestore.instance.collection('places').add({
                   'name': nameCtrl.text,
-                  'category': categoryCtrl.text,
+                  'category': categoryValue,
                   'location': locationCtrl.text,
                   'averageRating': null,
                   'reviewCount': 0,
