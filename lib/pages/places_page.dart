@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'place_detail_page.dart';
 
 class PlacesPage extends StatefulWidget {
@@ -20,6 +21,19 @@ class _PlacesPageState extends State<PlacesPage> {
     'Sightseeing',
     'City',
   ];
+
+  Future<void> _openInMaps(String name, String location) async {
+    final query = Uri.encodeComponent('$name, $location');
+    final url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
+
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Couldn't open Google Maps")),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -87,6 +101,8 @@ class _PlacesPageState extends State<PlacesPage> {
                   itemBuilder: (context, index) {
                     final place = filteredPlaces[index].data() as Map<String, dynamic>;
                     final placeId = filteredPlaces[index].id;
+                    final placeName = place['name'] ?? 'Unnamed Place';
+                    final placeLocation = place['location'] ?? '';
 
                     return Card(
                       elevation: 3,
@@ -99,7 +115,7 @@ class _PlacesPageState extends State<PlacesPage> {
                           child: const Icon(Icons.place, color: Colors.blueAccent),
                         ),
                         title: Text(
-                          place['name'] ?? 'Unnamed Place',
+                          placeName,
                           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                         ),
                         subtitle: Column(
@@ -107,7 +123,7 @@ class _PlacesPageState extends State<PlacesPage> {
                           children: [
                             const SizedBox(height: 5),
                             Text("Category: ${place['category'] ?? 'General'}"),
-                            Text("Location: ${place['location'] ?? 'Unknown'}"),
+                            Text("Location: ${placeLocation.isEmpty ? 'Unknown' : placeLocation}"),
                             const SizedBox(height: 5),
                             Row(
                               children: [
@@ -122,6 +138,11 @@ class _PlacesPageState extends State<PlacesPage> {
                               ],
                             ),
                           ],
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.map_outlined, color: Colors.blueAccent),
+                          tooltip: "Open in Google Maps",
+                          onPressed: () => _openInMaps(placeName, placeLocation),
                         ),
                         onTap: () {
                           Navigator.push(
