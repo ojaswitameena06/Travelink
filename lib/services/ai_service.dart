@@ -23,4 +23,23 @@ class AIService {
       return "Sorry, something went wrong. Please check your connection and try again.";
     }
   }
+
+  static Future<List<Map<String, dynamic>>> getPersonalizedPackages(
+    List<String> categories, {
+    int count = 6,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$_proxyUrl/packages'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'categories': categories, 'count': count}),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to generate packages');
+    }
+
+    final data = jsonDecode(response.body);
+    final List<dynamic> rawPackages = data['packages'] ?? [];
+    return rawPackages.map((p) => Map<String, dynamic>.from(p)).toList();
+  }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../utils/travel_categories.dart';
 
 class AddTripPage extends StatefulWidget {
   const AddTripPage({super.key});
@@ -14,6 +15,7 @@ class _AddTripPageState extends State<AddTripPage> {
   final _descController = TextEditingController();
   final _imageUrlController = TextEditingController();
   bool _isLoading = false;
+  String _selectedCategory = kTravelCategories.first;
 
   Future<void> _saveTrip() async {
     if (_titleController.text.isEmpty || _imageUrlController.text.isEmpty) {
@@ -32,13 +34,14 @@ class _AddTripPageState extends State<AddTripPage> {
       await FirebaseFirestore.instance.collection('trips').add({
         'title': _titleController.text,
         'description': _descController.text,
-        'image': _imageUrlController.text, // Saving the provided URL
+        'image': _imageUrlController.text,
+        'category': _selectedCategory,
         'userId': userId,
         'timestamp': FieldValue.serverTimestamp(),
       });
 
       if (mounted) {
-        Navigator.pop(context); // Go back after saving
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
@@ -82,6 +85,22 @@ class _AddTripPageState extends State<AddTripPage> {
                 labelText: 'Description',
                 border: OutlineInputBorder(),
               ),
+            ),
+            const SizedBox(height: 15),
+            DropdownButtonFormField<String>(
+              value: _selectedCategory,
+              decoration: const InputDecoration(
+                labelText: 'Trip Category',
+                border: OutlineInputBorder(),
+              ),
+              items: kTravelCategories.map((cat) {
+                return DropdownMenuItem(value: cat, child: Text(cat));
+              }).toList(),
+              onChanged: (val) {
+                if (val != null) {
+                  setState(() => _selectedCategory = val);
+                }
+              },
             ),
             const SizedBox(height: 15),
             TextField(

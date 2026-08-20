@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../utils/travel_categories.dart';
 import 'place_detail_page.dart';
 
 class PlacesPage extends StatefulWidget {
@@ -12,15 +14,6 @@ class PlacesPage extends StatefulWidget {
 
 class _PlacesPageState extends State<PlacesPage> {
   String _selectedCategory = 'All';
-
-  final List<String> _categories = [
-    'All',
-    'Hotel',
-    'Restaurant',
-    'Cafe',
-    'Sightseeing',
-    'City',
-  ];
 
   Future<void> _openInMaps(String name, String location) async {
     final query = Uri.encodeComponent('$name, $location');
@@ -35,18 +28,65 @@ class _PlacesPageState extends State<PlacesPage> {
     }
   }
 
+  Future<void> _togglePlaceBookmark(
+    String placeId,
+    String category,
+    List<dynamic> currentBookmarks,
+  ) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please log in to save places.')),
+        );
+      }
+      return;
+    }
+
+    final uid = user.uid;
+    final placeRef = FirebaseFirestore.instance.collection('places').doc(placeId);
+    final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
+    final safeCategory = category.isEmpty ? 'General' : category;
+
+    final isBookmarked = currentBookmarks.contains(uid);
+
+    if (isBookmarked) {
+      await placeRef.update({'bookmarks': FieldValue.arrayRemove([uid])});
+      await userRef.set({
+        'categoryScores': {safeCategory: FieldValue.increment(-1)}
+      }, SetOptions(merge: true));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Removed from saved places')),
+        );
+      }
+    } else {
+      await placeRef.update({'bookmarks': FieldValue.arrayUnion([uid])});
+      await userRef.set({
+        'categoryScores': {safeCategory: FieldValue.increment(1)}
+      }, SetOptions(merge: true));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Saved! We\'ll use this to personalize your packages 🎯')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final filterChips = ['All', ...kTravelCategories];
+
     return Scaffold(
       appBar: AppBar(title: const Text("Places & Reviews 🏢")),
       body: Column(
         children: [
-          // 🏷️ Category Filter Chips
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
-              children: _categories.map((cat) {
+              children: filterChips.map((cat) {
                 final isSelected = _selectedCategory == cat;
                 return Padding(
                   padding: const EdgeInsets.only(right: 8.0),
@@ -65,8 +105,6 @@ class _PlacesPageState extends State<PlacesPage> {
               }).toList(),
             ),
           ),
-
-          // 🏢 Places Feed
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance.collection('places').snapshots(),
@@ -103,6 +141,9 @@ class _PlacesPageState extends State<PlacesPage> {
                     final placeId = filteredPlaces[index].id;
                     final placeName = place['name'] ?? 'Unnamed Place';
                     final placeLocation = place['location'] ?? '';
+                    final placeCategory = place['category'] ?? 'General';
+                    final List<dynamic> bookmarks = place['bookmarks'] ?? [];
+                    final isBookmarked = bookmarks.contains(currentUserId);
 
                     return Card(
                       elevation: 3,
@@ -122,7 +163,7 @@ class _PlacesPageState extends State<PlacesPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const SizedBox(height: 5),
-                            Text("Category: ${place['category'] ?? 'General'}"),
+                            Text("Category: $placeCategory"),
                             Text("Location: ${placeLocation.isEmpty ? 'Unknown' : placeLocation}"),
                             const SizedBox(height: 5),
                             Row(
@@ -139,10 +180,24 @@ class _PlacesPageState extends State<PlacesPage> {
                             ),
                           ],
                         ),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.map_outlined, color: Colors.blueAccent),
-                          tooltip: "Open in Google Maps",
-                          onPressed: () => _openInMaps(placeName, placeLocation),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                                color: isBookmarked ? Colors.amber[800] : Colors.grey,
+                              ),
+                              tooltip: isBookmarked ? "Remove bookmark" : "Save this place",
+                              onPressed: () =>
+                                  _togglePlaceBookmark(placeId, placeCategory, bookmarks),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.map_outlined, color: Colors.blueAccent),
+                              tooltip: "Open in Google Maps",
+                              onPressed: () => _openInMaps(placeName, placeLocation),
+                            ),
+                          ],
                         ),
                         onTap: () {
                           Navigator.push(
@@ -171,9 +226,7 @@ class _PlacesPageState extends State<PlacesPage> {
   void _showAddPlaceDialog(BuildContext context) {
     final nameCtrl = TextEditingController();
     final locationCtrl = TextEditingController();
-    String categoryValue = 'Hotel';
-
-    final categoryOptions = ['Hotel', 'Restaurant', 'Cafe', 'Sightseeing', 'City', 'General'];
+    String categoryValue = kTravelCategories.first;
 
     showDialog(
       context: context,
@@ -193,7 +246,7 @@ class _PlacesPageState extends State<PlacesPage> {
                   DropdownButtonFormField<String>(
                     value: categoryValue,
                     decoration: const InputDecoration(labelText: "Category"),
-                    items: categoryOptions.map((cat) {
+                    items: kTravelCategories.map((cat) {
                       return DropdownMenuItem(value: cat, child: Text(cat));
                     }).toList(),
                     onChanged: (val) {
@@ -225,6 +278,7 @@ class _PlacesPageState extends State<PlacesPage> {
                   'location': locationCtrl.text,
                   'averageRating': null,
                   'reviewCount': 0,
+                  'bookmarks': [],
                 });
                 Navigator.pop(context);
               }
