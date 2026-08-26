@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/ai_service.dart';
 import '../utils/travel_categories.dart';
-import 'ai_chatbot_page.dart';
 
 class PackagesPage extends StatefulWidget {
   const PackagesPage({super.key});
@@ -125,51 +124,6 @@ class _PackagesPageState extends State<PackagesPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Colors.blueAccent, Colors.indigoAccent],
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.auto_awesome, color: Colors.amber, size: 36),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
-                          "Need a Customized Plan?",
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          "Ask Travelink AI to build a custom travel package tailored for your exact budget!",
-                          style: TextStyle(color: Colors.white70, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.blueAccent,
-                    ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const AIChatbotPage()),
-                      );
-                    },
-                    child: const Text("Ask AI"),
-                  ),
-                ],
-              ),
-            ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
               child: Row(
@@ -351,20 +305,6 @@ class _PackagesPageState extends State<PackagesPage> {
                                     padding: EdgeInsets.zero,
                                   );
                                 }).toList(),
-                              ),
-                              const SizedBox(height: 10),
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton.icon(
-                                  icon: const Icon(Icons.chat_outlined, size: 18),
-                                  label: const Text("Ask AI Assistant About This Package"),
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(builder: (_) => const AIChatbotPage()),
-                                    );
-                                  },
-                                ),
                               ),
                             ],
                           ),
