@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'chat_detail_page.dart';
 import 'trip_detail_page.dart';
+import 'buddy_finder_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -118,8 +119,20 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Explore Travelink 🌍"),
-      ),
+  title: const Text("Explore Travelink 🌍"),
+  actions: [
+    IconButton(
+      icon: const Icon(Icons.group_add_outlined),
+      tooltip: "Find a travel buddy",
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const BuddyFinderPage()),
+        );
+      },
+    ),
+  ],
+),
       body: Column(
         children: [
           Padding(
