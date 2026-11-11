@@ -27,11 +27,18 @@ class AIService {
   static Future<List<Map<String, dynamic>>> getPersonalizedPackages(
     List<String> categories, {
     int count = 6,
+    int? budget,
+    int? days,
   }) async {
     final response = await http.post(
       Uri.parse('$_proxyUrl/packages'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'categories': categories, 'count': count}),
+      body: jsonEncode({
+        'categories': categories,
+        'count': count,
+        if (budget != null) 'budget': budget,
+        if (days != null) 'days': days,
+      }),
     );
 
     if (response.statusCode != 200) {
