@@ -1,12 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import '../services/review_service.dart';
 
 class AddReviewPage extends StatefulWidget {
   final String placeId;
   final String placeName;
+  final String category;
+  final String? existingReviewId;
+  final int? existingRating;
+  final String? existingText;
 
-  const AddReviewPage({super.key, required this.placeId, required this.placeName});
+  const AddReviewPage({
+    super.key,
+    required this.placeId,
+    required this.placeName,
+    this.category = 'General',
+    this.existingReviewId,
+    this.existingRating,
+    this.existingText,
+  });
 
   @override
   State<AddReviewPage> createState() => _AddReviewPageState();
@@ -14,46 +25,51 @@ class AddReviewPage extends StatefulWidget {
 
 class _AddReviewPageState extends State<AddReviewPage> {
   final _reviewCtrl = TextEditingController();
-  double _rating = 5.0;
+  int _rating = 5;
   bool _isLoading = false;
 
+  static const _labels = ['Poor', 'Fair', 'Good', 'Very good', 'Excellent'];
+
+  bool get _isEditing => widget.existingReviewId != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _rating = widget.existingRating ?? 5;
+    _reviewCtrl.text = widget.existingText ?? '';
+  }
+
+  @override
+  void dispose() {
+    _reviewCtrl.dispose();
+    super.dispose();
+  }
+
+  void _show(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   Future<void> _submitReview() async {
-    if (_reviewCtrl.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please write a review.')));
+    final text = _reviewCtrl.text.trim();
+    if (text.isEmpty) {
+      _show('Please write a review.');
       return;
     }
+
     setState(() => _isLoading = true);
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      
-      await FirebaseFirestore.instance.collection('reviews').add({
-        'placeId': widget.placeId,
-        'userId': user?.uid ?? 'anonymous',
-        'rating': _rating,
-        'reviewText': _reviewCtrl.text,
-        'timestamp': FieldValue.serverTimestamp(),
-      });
-
-      // Update place average rating simply
-      final placeDoc = await FirebaseFirestore.instance.collection('places').doc(widget.placeId).get();
-      if (placeDoc.exists) {
-        final data = placeDoc.data()!;
-        final currentCount = (data['reviewCount'] ?? 0) as int;
-        final currentAvg = (data['averageRating'] ?? 0.0) as num;
-        
-        final newCount = currentCount + 1;
-        final newAvg = ((currentAvg * currentCount) + _rating) / newCount;
-        
-        await FirebaseFirestore.instance.collection('places').doc(widget.placeId).update({
-          'reviewCount': newCount,
-          'averageRating': double.parse(newAvg.toStringAsFixed(1)),
-        });
-      }
-
+      await ReviewService.saveReview(
+        placeId: widget.placeId,
+        category: widget.category,
+        rating: _rating,
+        text: text,
+        existingReviewId: widget.existingReviewId,
+      );
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      _show('Could not save your review: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -62,44 +78,65 @@ class _AddReviewPageState extends State<AddReviewPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(title: Text("Review ${widget.placeName}")),
-        body: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text("Rating out of 5:", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              Slider(
-                value: _rating,
-                min: 1,
-                max: 5,
-                divisions: 4,
-                label: _rating.toString(),
-                onChanged: (val) {
-                  setState(() => _rating = val);
-                },
+      appBar: AppBar(
+        title: Text(_isEditing ? 'Edit your review' : 'Review ${widget.placeName}'),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'How was it?',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(5, (i) {
+                return IconButton(
+                  iconSize: 40,
+                  tooltip: '${i + 1} star${i == 0 ? '' : 's'}',
+                  icon: Icon(
+                    i < _rating ? Icons.star : Icons.star_border,
+                    color: Colors.orange,
+                  ),
+                  onPressed: () => setState(() => _rating = i + 1),
+                );
+              }),
+            ),
+            Center(
+              child: Text(
+                _labels[_rating - 1],
+                style: const TextStyle(fontSize: 16, color: Colors.grey),
               ),
-              Center(child: Text("⭐ $_rating", style: const TextStyle(fontSize: 24))),
-              const SizedBox(height: 20),
-              TextField(
-                controller: _reviewCtrl,
-                maxLines: 4,
-                decoration: const InputDecoration(
-                  labelText: 'Your Review',
-                  border: OutlineInputBorder(),
-                ),
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: _reviewCtrl,
+              maxLines: 4,
+              maxLength: 500,
+              decoration: const InputDecoration(
+                labelText: 'Your Review',
+                border: OutlineInputBorder(),
               ),
-              const SizedBox(height: 30),
-              ElevatedButton(
-                onPressed: _isLoading ? null : _submitReview,
-                style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 15)),
-                child: _isLoading 
-                    ? const CircularProgressIndicator() 
-                    : const Text("Submit Review", style: TextStyle(fontSize: 18)),
-              )
-            ],
-          ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _isLoading ? null : _submitReview,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 15),
+              ),
+              child: _isLoading
+                  ? const CircularProgressIndicator()
+                  : Text(
+                      _isEditing ? 'Update Review' : 'Submit Review',
+                      style: const TextStyle(fontSize: 18),
+                    ),
+            ),
+          ],
         ),
+      ),
     );
   }
 }
