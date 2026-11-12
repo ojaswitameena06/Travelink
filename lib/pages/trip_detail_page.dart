@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'chat_detail_page.dart';
+import '../services/user_service.dart';
+import '../widgets/user_avatar.dart';
 
 class TripDetailPage extends StatefulWidget {
   final String tripId;
@@ -78,7 +80,7 @@ class _TripDetailPageState extends State<TripDetailPage> {
     }
   }
 
-  void _startChatWithTraveler(Map<String, dynamic> trip) {
+  Future<void> _startChatWithTraveler(Map<String, dynamic> trip) async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -87,8 +89,8 @@ class _TripDetailPageState extends State<TripDetailPage> {
       return;
     }
 
-    final authorUid = trip['userId'] ?? '';
-    final destination = trip['title'] ?? 'Trip';
+    final authorUid = (trip['userId'] ?? '').toString();
+    final destination = (trip['title'] ?? 'Trip').toString();
 
     if (authorUid.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -106,7 +108,8 @@ class _TripDetailPageState extends State<TripDetailPage> {
 
     final ids = [currentUser.uid, authorUid]..sort();
     final chatId = ids.join('_');
-    final recipientName = "Traveler ${authorUid.substring(0, 4)}";
+    final recipient = await UserService.getProfile(authorUid);
+    if (!mounted) return;
 
     Navigator.push(
       context,
@@ -114,7 +117,7 @@ class _TripDetailPageState extends State<TripDetailPage> {
         builder: (_) => ChatDetailPage(
           chatId: chatId,
           recipientUid: authorUid,
-          recipientName: recipientName,
+          recipientName: recipient.name,
           destination: destination,
         ),
       ),
@@ -199,9 +202,22 @@ class _TripDetailPageState extends State<TripDetailPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                     Text(
                         trip['title'] ?? 'No title',
                         style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          UserAvatar(uid: (trip['userId'] ?? '').toString(), radius: 16),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: UserName(
+                              uid: (trip['userId'] ?? '').toString(),
+                              style: const TextStyle(fontSize: 14, color: Colors.grey),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 8),
                       Chip(

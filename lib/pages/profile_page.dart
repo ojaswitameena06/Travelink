@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/user_service.dart';
+import 'edit_profile_page.dart';
 import 'login_page.dart';
 
 class ProfilePage extends StatelessWidget {
@@ -18,42 +20,93 @@ class ProfilePage extends StatelessWidget {
         child: Column(
           children: [
             const SizedBox(height: 20),
-            // 👤 User Header
-            Center(
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 45,
-                    backgroundColor: Colors.blueAccent.withOpacity(0.2),
-                    child: Text(
-                      email.isNotEmpty ? email[0].toUpperCase() : 'U',
-                      style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.blueAccent),
+            // 👤 User Header (live from the profiles collection)
+            StreamBuilder<DocumentSnapshot>(
+              stream: uid.isEmpty
+                  ? null
+                  : FirebaseFirestore.instance.collection('profiles').doc(uid).snapshots(),
+              builder: (context, snap) {
+                final data = (snap.data?.data() as Map<String, dynamic>?) ?? <String, dynamic>{};
+                final String name = (data['displayName'] ?? '').toString().trim();
+                final String bio = (data['bio'] ?? '').toString().trim();
+                final String photo = (data['photoUrl'] ?? '').toString().trim();
+                final String initialSource = name.isNotEmpty ? name : email;
+
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Column(
+                      children: [
+                        CircleAvatar(
+                          radius: 45,
+                          backgroundColor: Colors.blueAccent.withOpacity(0.2),
+                          backgroundImage: photo.isNotEmpty ? NetworkImage(photo) : null,
+                          child: photo.isEmpty
+                              ? Text(
+                                  initialSource.isNotEmpty ? initialSource[0].toUpperCase() : 'U',
+                                  style: const TextStyle(
+                                    fontSize: 36,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blueAccent,
+                                  ),
+                                )
+                              : null,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          name.isNotEmpty ? name : 'Add your name',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: name.isNotEmpty ? null : Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(email, style: const TextStyle(color: Colors.grey)),
+                        if (bio.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Text(bio, textAlign: TextAlign.center),
+                        ],
+                        const SizedBox(height: 15),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 8,
+                          alignment: WrapAlignment.center,
+                          children: [
+                            ElevatedButton.icon(
+                              icon: const Icon(Icons.edit),
+                              label: const Text("Edit profile"),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const EditProfilePage()),
+                                );
+                              },
+                            ),
+                            ElevatedButton.icon(
+                              icon: const Icon(Icons.logout),
+                              label: const Text("Logout"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.redAccent,
+                                foregroundColor: Colors.white,
+                              ),
+                              onPressed: () {
+                                UserService.clearCache();
+                                FirebaseAuth.instance.signOut();
+                                Navigator.pushAndRemoveUntil(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => LoginPage()),
+                                  (route) => false,
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    email,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 15),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.logout),
-                    label: const Text("Logout"),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.redAccent,
-                      foregroundColor: Colors.white,
-                    ),
-                    onPressed: () {
-                      FirebaseAuth.instance.signOut();
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (_) => LoginPage()),
-                        (route) => false,
-                      );
-                    },
-                  ),
-                ],
-              ),
+                );
+              },
             ),
             const SizedBox(height: 25),
             const Divider(thickness: 1),
