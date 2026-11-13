@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../services/trip_actions.dart';
 import 'add_trip_page.dart';
+import 'edit_trip_page.dart';
 import 'trip_detail_page.dart';
 
 class TripsPage extends StatelessWidget {
@@ -49,6 +51,11 @@ class TripsPage extends StatelessWidget {
                     final trip = tripDoc.data() as Map<String, dynamic>;
                     final tripId = tripDoc.id;
 
+                    final String title = (trip['title'] ?? 'No title').toString();
+                    final String category = (trip['category'] ?? 'General').toString();
+                    final int likeCount = (trip['likes'] as List?)?.length ?? 0;
+                    final int saveCount = (trip['bookmarks'] as List?)?.length ?? 0;
+
                     final List<String> tripImages = trip['images'] != null
                         ? List<String>.from(trip['images'])
                         : (trip['image'] != null && trip['image'].toString().isNotEmpty
@@ -78,20 +85,53 @@ class TripsPage extends StatelessWidget {
                               Container(
                                 height: 150,
                                 color: Colors.grey[300],
-                                child: const Icon(Icons.image, size: 40),
+                                child: const Center(child: Icon(Icons.image, size: 40)),
                               ),
                             Padding(
-                              padding: const EdgeInsets.all(12),
+                              padding: const EdgeInsets.fromLTRB(12, 8, 4, 12),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    trip['title'] ?? 'No title',
-                                    style: const TextStyle(
-                                        fontSize: 18, fontWeight: FontWeight.bold),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          title,
+                                          style: const TextStyle(
+                                              fontSize: 18, fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                      PopupMenuButton<String>(
+                                        tooltip: 'Trip options',
+                                        onSelected: (value) {
+                                          if (value == 'edit') {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) =>
+                                                    EditTripPage(tripId: tripId, tripData: trip),
+                                              ),
+                                            );
+                                          } else {
+                                            TripActions.confirmAndDelete(context, tripId, title);
+                                          }
+                                        },
+                                        itemBuilder: (_) => const [
+                                          PopupMenuItem(value: 'edit', child: Text('Edit')),
+                                          PopupMenuItem(value: 'delete', child: Text('Delete')),
+                                        ],
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(height: 5),
-                                  Text(trip['description'] ?? ''),
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: Text((trip['description'] ?? '').toString()),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    '$category  ·  ❤ $likeCount  ·  🔖 $saveCount',
+                                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                                  ),
                                 ],
                               ),
                             ),

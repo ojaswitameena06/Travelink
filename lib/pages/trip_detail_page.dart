@@ -4,6 +4,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'chat_detail_page.dart';
 import '../services/user_service.dart';
 import '../widgets/user_avatar.dart';
+import '../services/trip_actions.dart';
+import 'edit_trip_page.dart';
+import 'package:flutter/services.dart';
+import '../widgets/trip_comments.dart';
 
 class TripDetailPage extends StatefulWidget {
   final String tripId;
@@ -80,6 +84,17 @@ class _TripDetailPageState extends State<TripDetailPage> {
     }
   }
 
+  Future<void> _shareTrip(Map<String, dynamic> trip) async {
+    final title = (trip['title'] ?? 'a trip').toString();
+    final text =
+        'Check out "$title" on Travelink 🌍\nhttps://ojaswitameena06.github.io/Travelink/';
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Trip link copied - paste it anywhere to share!')),
+    );
+  }
+
   Future<void> _startChatWithTraveler(Map<String, dynamic> trip) async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
@@ -141,6 +156,7 @@ class _TripDetailPageState extends State<TripDetailPage> {
           final bool isLiked = likes.contains(currentUserId);
           final bool isBookmarked = bookmarks.contains(currentUserId);
           final String category = trip['category'] ?? 'General';
+          final bool isOwner = currentUserId.isNotEmpty && trip['userId'] == currentUserId;
 
           final List<String> images = trip['images'] != null
               ? List<String>.from(trip['images'])
@@ -153,6 +169,42 @@ class _TripDetailPageState extends State<TripDetailPage> {
               SliverAppBar(
                 pinned: true,
                 expandedHeight: 320,
+                actions: isOwner
+                    ? [
+                        IconButton(
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.black45,
+                            foregroundColor: Colors.white,
+                          ),
+                          icon: const Icon(Icons.edit),
+                          tooltip: 'Edit trip',
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => EditTripPage(tripId: widget.tripId, tripData: trip),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        IconButton(
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.black45,
+                            foregroundColor: Colors.white,
+                          ),
+                          icon: const Icon(Icons.delete_outline),
+                          tooltip: 'Delete trip',
+                          onPressed: () async {
+                            final deleted = await TripActions.confirmAndDelete(
+                              context,
+                              widget.tripId,
+                              (trip['title'] ?? 'this trip').toString(),
+                            );
+                            if (deleted && context.mounted) Navigator.pop(context);
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                      ]
+                    : null,
                 flexibleSpace: FlexibleSpaceBar(
                   background: images.isEmpty
                       ? Container(
@@ -245,6 +297,11 @@ class _TripDetailPageState extends State<TripDetailPage> {
                           ),
                           const Spacer(),
                           IconButton(
+                            icon: const Icon(Icons.share_outlined),
+                            tooltip: 'Share trip',
+                            onPressed: () => _shareTrip(trip),
+                          ),
+                          IconButton(
                             icon: Icon(
                               isBookmarked ? Icons.bookmark : Icons.bookmark_border,
                               color: isBookmarked ? Colors.amber[800] : Colors.grey,
@@ -262,6 +319,11 @@ class _TripDetailPageState extends State<TripDetailPage> {
                           label: const Text("Ask Traveler About This Trip"),
                           onPressed: () => _startChatWithTraveler(trip),
                         ),
+                      ),
+                      const SizedBox(height: 28),
+                      TripComments(
+                        tripId: widget.tripId,
+                        tripOwnerId: (trip['userId'] ?? '').toString(),
                       ),
                     ],
                   ),

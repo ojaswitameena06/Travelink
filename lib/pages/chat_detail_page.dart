@@ -53,7 +53,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       await FirebaseFirestore.instance.collection('chats').doc(widget.chatId).set({
         'participants': [currentUser.uid, widget.recipientUid],
         'participantNames': {
-          currentUser.uid: currentUser.email?.split('@')[0] ?? 'Traveler',
+              currentUser.uid: (currentUser.displayName ?? '').trim().isNotEmpty
+              ? currentUser.displayName!.trim()
+              : 'Traveler ${currentUser.uid.substring(0, 4)}',
           widget.recipientUid: widget.recipientName,
         },
         'destination': widget.destination,
